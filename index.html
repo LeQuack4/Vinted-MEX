@@ -109,6 +109,7 @@ canvas { max-width:100%; height:300px; display:block; margin:0 auto; }
 
 <script>
 const CURRENT_VERSION = "1.0.3"; // VERSION DU SITE - À CHANGER À CHAQUE MISE À JOUR
+const DB_PATH = "dashboardV2"; // NOUVEAU PATH - Les anciennes versions utilisent "dashboard"
 
 const firebaseConfig = {
   apiKey: "AIzaSyDjkZPkzEOpBLM498Q8URIlHYjRhdcomQo",
@@ -121,6 +122,9 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+
+// MIGRATION AUTOMATIQUE des anciennes données vers V2
+migrateToV2();
 
 // VÉRIFICATION DE VERSION AU CHARGEMENT
 checkVersion();
@@ -197,8 +201,32 @@ function handleEnter(event){
   }
 }
 
+function migrateToV2(){
+  // Vérifier si migration déjà faite
+  db.ref(`${DB_PATH}/migrated`).once("value", snapshot => {
+    if(!snapshot.exists()){
+      console.log("🔄 Migration vers V2...");
+      // Récupérer les anciennes données
+      db.ref("dashboard/data").once("value", oldData => {
+        if(oldData.exists()){
+          // Copier vers V2
+          db.ref(`${DB_PATH}/data`).set(oldData.val()).then(() => {
+            console.log("✅ Données migrées vers V2");
+          });
+        }
+      });
+      
+      // Marquer comme migré
+      db.ref(`${DB_PATH}/migrated`).set(true);
+      console.log("✅ Migration terminée");
+    } else {
+      console.log("✅ Déjà migré vers V2");
+    }
+  });
+}
+
 function checkVersion(){
-  db.ref("dashboard/version").once("value", snapshot => {
+  db.ref(`${DB_PATH}/version`).once("value", snapshot => {
     if(snapshot.exists()){
       const requiredVersion = snapshot.val().current;
       if(requiredVersion !== CURRENT_VERSION){
@@ -219,7 +247,7 @@ function checkVersion(){
       }
     } else {
       // Première initialisation : définir la version actuelle
-      db.ref("dashboard/version").set({
+      db.ref(`${DB_PATH}/version`).set({
         current: CURRENT_VERSION,
         updatedAt: Date.now()
       });
@@ -264,17 +292,17 @@ function render(){
 }
 
 function saveData(){
-  db.ref("dashboard/data").set(data);
+  db.ref(`${DB_PATH}/data`).set(data);
 }
 
 function getMasterIP(callback){
-  db.ref("dashboard/masterIP").once("value", snapshot => {
+  db.ref(`${DB_PATH}/masterIP`).once("value", snapshot => {
     callback(snapshot.exists() ? snapshot.val().ip : null);
   });
 }
 
 function setMasterIP(ip){
-  db.ref("dashboard/masterIP").set({
+  db.ref(`${DB_PATH}/masterIP`).set({
     ip: ip,
     setAt: Date.now(),
     setBy: "xuban"
@@ -288,7 +316,7 @@ function checkIfIPBlocked(ip, callback){
       callback(false);
       return;
     }
-    db.ref(`dashboard/blockedIPs/${ip.replace(/\./g, '_')}`).once("value", snapshot => {
+    db.ref(`${DB_PATH}/blockedIPs/${ip.replace(/\./g, '_')}`).once("value", snapshot => {
       const blocked = snapshot.val();
       callback(blocked && blocked.blocked);
     });
@@ -296,7 +324,7 @@ function checkIfIPBlocked(ip, callback){
 }
 
 function autoBanIntruder(ip, username){
-  db.ref(`dashboard/blockedIPs/${ip.replace(/\./g, '_')}`).set({
+  db.ref(`${DB_PATH}/blockedIPs/${ip.replace(/\./g, '_')}`).set({
     blocked: true,
     blockedAt: Date.now(),
     blockedBy: "SYSTÈME AUTO-BAN",
@@ -309,7 +337,7 @@ function renderSessions(){
   if(!currentUser || currentUser.role !== "admin") return;
   
   getMasterIP(masterIP => {
-    db.ref("dashboard/sessions").once("value", snapshot => {
+    db.ref(`${DB_PATH}/sessions`).once("value", snapshot => {
       const sessions = snapshot.val() || {};
       const container = document.getElementById("sessionsContainer");
       
@@ -373,7 +401,7 @@ function renderSessions(){
 function renderBlockedIPs(){
   if(!currentUser || currentUser.role !== "admin") return;
   
-  db.ref("dashboard/blockedIPs").once("value", snapshot => {
+  db.ref(`${DB_PATH}/blockedIPs`).once("value", snapshot => {
     const blocked = snapshot.val() || {};
     const container = document.getElementById("blockedIPsContainer");
     
@@ -403,7 +431,7 @@ function renderBlockedIPs(){
 
 function kickSession(sid){
   if(confirm("⏏️ Déconnecter cette session ?")){
-    db.ref(`dashboard/sessions/${sid}`).update({
+    db.ref(`${DB_PATH}/sessions/${sid}`).update({
       active: false,
       kickedAt: Date.now()
     }).then(() => {
@@ -421,17 +449,17 @@ function blockIP(ip, sid){
     }
     
     if(confirm(`🔒 BANNIR l'IP ${ip} ?`)){
-      db.ref(`dashboard/blockedIPs/${ip.replace(/\./g, '_')}`).set({
+      db.ref(`${DB_PATH}/blockedIPs/${ip.replace(/\./g, '_')}`).set({
         blocked: true,
         blockedAt: Date.now(),
         blockedBy: currentUser.username,
         reason: `Banni manuellement`
       }).then(() => {
-        db.ref("dashboard/sessions").once("value", snapshot => {
+        db.ref(`${DB_PATH}/sessions`).once("value", snapshot => {
           const sessions = snapshot.val() || {};
           for(let s in sessions){
             if(sessions[s].ip === ip && sessions[s].active){
-              db.ref(`dashboard/sessions/${s}`).update({
+              db.ref(`${DB_PATH}/sessions/${s}`).update({
                 active: false,
                 kickedAt: Date.now()
               });
@@ -460,7 +488,7 @@ function blockIPManually(){
     }
     
     if(confirm(`🔒 Bannir ${ip} ?`)){
-      db.ref(`dashboard/blockedIPs/${ip.replace(/\./g, '_')}`).set({
+      db.ref(`${DB_PATH}/blockedIPs/${ip.replace(/\./g, '_')}`).set({
         blocked: true,
         blockedAt: Date.now(),
         blockedBy: currentUser.username,
@@ -477,7 +505,7 @@ function blockIPManually(){
 function unblockIP(ip){
   const realIP = ip.replace(/_/g, '.');
   if(confirm(`✅ Débloquer ${realIP} ?`)){
-    db.ref(`dashboard/blockedIPs/${ip}`).remove().then(() => {
+    db.ref(`${DB_PATH}/blockedIPs/${ip}`).remove().then(() => {
       alert(`✅ IP ${realIP} débloquée`);
       renderBlockedIPs();
     });
@@ -486,7 +514,7 @@ function unblockIP(ip){
 
 function monitorSession(){
   if(!currentSessionId) return;
-  db.ref(`dashboard/sessions/${currentSessionId}`).on("value", snapshot => {
+  db.ref(`${DB_PATH}/sessions/${currentSessionId}`).on("value", snapshot => {
     const s = snapshot.val();
     if(s && !s.active){
       alert("⚠️ Vous avez été déconnecté !");
@@ -497,7 +525,7 @@ function monitorSession(){
 
 function forceLogout(){
   if(currentSessionId){
-    db.ref(`dashboard/sessions/${currentSessionId}`).off();
+    db.ref(`${DB_PATH}/sessions/${currentSessionId}`).off();
   }
   currentUser = null;
   currentSessionId = null;
@@ -511,18 +539,18 @@ function forceLogout(){
 }
 
 function initRealtimeDatabase(){
-  db.ref("dashboard/data").on("value", snapshot=>{
+  db.ref(`${DB_PATH}/data`).on("value", snapshot=>{
     if(snapshot.exists()){
       data = snapshot.val();
       render();
     } else {
-      db.ref("dashboard/data").set(data);
+      db.ref(`${DB_PATH}/data`).set(data);
     }
   });
   
   if(currentUser.role === "admin"){
-    db.ref("dashboard/sessions").on("value", () => renderSessions());
-    db.ref("dashboard/blockedIPs").on("value", () => renderBlockedIPs());
+    db.ref(`${DB_PATH}/sessions`).on("value", () => renderSessions());
+    db.ref(`${DB_PATH}/blockedIPs`).on("value", () => renderBlockedIPs());
   }
 }
 
@@ -574,7 +602,7 @@ function login(){
 }
 
 function proceedLogin(){
-  db.ref(`dashboard/sessions/${currentSessionId}`).set({
+  db.ref(`${DB_PATH}/sessions/${currentSessionId}`).set({
     username: currentUser.username,
     ip: myIP,
     loginTime: Date.now(),
@@ -598,7 +626,7 @@ function proceedLogin(){
 
 function logout(){
   if(currentSessionId){
-    db.ref(`dashboard/sessions/${currentSessionId}`).update({
+    db.ref(`${DB_PATH}/sessions/${currentSessionId}`).update({
       active: false,
       logoutTime: Date.now()
     });
