@@ -982,6 +982,9 @@ function addTransaction() {
   if(!amount || amount <= 0) { alert("Montant invalide"); return; }
   if(!desc) { alert("Description requise"); return; }
   
+  // Sauvegarder l'état actuel dans l'historique AVANT modification
+  history.push(JSON.stringify(data));
+  
   const t = {
     id: Date.now(),
     type: type,
@@ -1534,10 +1537,27 @@ function resetData() {
 
 function undo() {
   if(!currentUser || currentUser.role !== "admin") return;
-  if(history.length === 0) { alert("Rien à annuler"); return; }
-  data = JSON.parse(history.pop());
+  if(history.length === 0) { 
+    alert("❌ Rien à annuler"); 
+    return; 
+  }
+  
+  // Récupérer la dernière modification
+  const lastState = JSON.parse(history.pop());
+  data = lastState;
   saveData();
+  
+  alert("✅ Dernière modification annulée (" + history.length + " action(s) restante(s) à annuler)");
 }
+
+function saveToHistory() {
+  history.push(JSON.stringify(data));
+  // Garder seulement les 20 dernières modifications
+  if(history.length > 20) {
+    history.shift(); // Supprime la plus ancienne
+  }
+}
+
 </script>
 </body>
 </html>
