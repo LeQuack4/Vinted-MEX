@@ -1352,6 +1352,30 @@ function login() {
 }
 
 function proceedLogin() {
+  // D'abord, désactiver toutes les anciennes sessions de cet utilisateur
+  db.ref(DB_PATH + '/sessions').once("value", snapshot => {
+    const sessions = snapshot.val() || {};
+    const updates = {};
+    
+    for(let sid in sessions) {
+      if(sessions[sid].username === currentUser.username && sessions[sid].active) {
+        updates[sid + '/active'] = false;
+        updates[sid + '/replacedAt'] = Date.now();
+      }
+    }
+    
+    // Appliquer les mises à jour puis créer la nouvelle session
+    if(Object.keys(updates).length > 0) {
+      db.ref(DB_PATH + '/sessions').update(updates).then(() => {
+        createNewSession();
+      });
+    } else {
+      createNewSession();
+    }
+  });
+}
+
+function createNewSession() {
   db.ref(DB_PATH + '/sessions/' + currentSessionId).set({
     username: currentUser.username,
     ip: myIP,
@@ -1359,6 +1383,7 @@ function proceedLogin() {
     active: true,
     userAgent: navigator.userAgent.substring(0, 100)
   });
+  
   document.getElementById("login").classList.add("hidden");
   document.getElementById("mainContent").classList.remove("hidden");
   document.getElementById("menuToggle").classList.add("show");
@@ -1414,15 +1439,29 @@ function addArticles() {
 
 function resetData() {
   if(!currentUser || currentUser.role !== "admin") return;
-  if(!confirm("⚠️ RESET COMPLET ?")) return;
+  if(!confirm("⚠️ RESET COMPLET DE TOUT LE SITE ?")) return;
+  if(!confirm("⚠️⚠️ DERNIÈRE CONFIRMATION - Toutes les données (vêtements, transactions, bénéfices) seront supprimées !")) return;
+  
   history.push(JSON.stringify(data));
+  
+  // Reset data
   data = {
     valorisation: 200,
     articles: 0,
     actionnaires: [{nom: "Xuban", part: 50}, {nom: "Mathis", part: 25}, {nom: "Enzo", part: 25}],
     benefices: [0]
   };
+  
+  // Reset transactions
+  transactions = [];
+  db.ref(DB_PATH + '/transactions').set([]);
+  
+  // Reset vêtements
+  vetements = [];
+  db.ref(DB_PATH + '/vetements').set([]);
+  
   saveData();
+  alert("✅ Toutes les données ont été réinitialisées !");
 }
 
 function undo() {
