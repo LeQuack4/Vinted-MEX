@@ -1371,6 +1371,11 @@ function initRealtimeDatabase() {
     renderVetements();
   });
   
+  db.ref(DB_PATH + '/history').on("value", snapshot => {
+    history = snapshot.exists() ? snapshot.val() : [];
+    updateUndoButton();
+  });
+  
   if(currentUser.role === "admin") {
     db.ref(DB_PATH + '/sessions').on("value", () => renderSessions());
     db.ref(DB_PATH + '/blockedIPs').on("value", () => renderBlockedIPs());
