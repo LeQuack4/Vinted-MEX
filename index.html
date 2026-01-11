@@ -126,9 +126,6 @@ button:disabled {
   text-align: center; 
 }
 
-#login .logo-container {
-  margin-bottom: 20px;
-}
 
 .hidden { 
   display: none !important; 
@@ -625,10 +622,10 @@ canvas {
 </div>
 
 <!-- Login -->
+<div class="logo-container">
+  <img src="logo.png" alt="Logo">
+</div>
 <div class="container" id="login">
-  <div class="logo-container">
-    <img src="logo.png" alt="Logo">
-  </div>
   <h1>Connexion</h1>
   <input id="username" placeholder="Nom d'utilisateur" autocomplete="username">
   <div class="password-container">
@@ -1088,7 +1085,23 @@ function renderVetements() {
   
   let html = '';
   vetements.forEach(v => {
-    html += `<div class="vetement-card"><img src="${v.images[0]}" alt="${v.title}"><div class="content"><h3>${v.title}</h3><p>${v.description || 'Pas de description'}</p><div class="actions"><button onclick="deleteVetement(${v.id})" style="background:#dc3545;">Supprimer</button></div></div></div>`;
+    const statusClass = v.status === 'vendu' ? 'status-vendu' : 'status-en-vente';
+    const statusText = v.status === 'vendu' ? '✅ Vendu' : '🏷️ En vente';
+    const toggleBtnText = v.status === 'vendu' ? '🔄 Remettre en vente' : '✅ Marquer vendu';
+    const toggleBtnColor = v.status === 'vendu' ? '#28a745' : '#ff9800';
+    
+    html += `<div class="vetement-card">
+      <img src="${v.images[0]}" alt="${v.title}">
+      <div class="content">
+        <span class="vetement-status ${statusClass}">${statusText}</span>
+        <h3>${v.title}</h3>
+        <p>${v.description || 'Pas de description'}</p>
+        <div class="actions">
+          <button onclick="toggleVetementStatus(${v.id})" style="background:${toggleBtnColor};">${toggleBtnText}</button>
+          <button onclick="deleteVetement(${v.id})" style="background:#dc3545;">Supprimer</button>
+        </div>
+      </div>
+    </div>`;
   });
   
   grid.innerHTML = html;
@@ -1097,6 +1110,15 @@ function renderVetements() {
 function deleteVetement(id) {
   if(!confirm("Supprimer ce vêtement ?")) return;
   vetements = vetements.filter(v => v.id !== id);
+  db.ref(DB_PATH + '/vetements').set(vetements);
+  renderVetements();
+}
+
+function toggleVetementStatus(id) {
+  const vetement = vetements.find(v => v.id === id);
+  if(!vetement) return;
+  
+  vetement.status = vetement.status === 'vendu' ? 'en-vente' : 'vendu';
   db.ref(DB_PATH + '/vetements').set(vetements);
   renderVetements();
 }
