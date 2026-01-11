@@ -879,11 +879,17 @@ function navigateToPage(p) {
   if((p === 'admin' || p === 'security') && (!currentUser || currentUser.role !== 'admin')) {
     alert("❌ Accès refusé - Réservé aux administrateurs");
     return;
-    // Si on navigue vers dashboard, redessiner les graphiques
-if(p === 'dashboard') {
-  setTimeout(() => render(), 100);
-}
   }
+  
+  document.querySelectorAll('.page-content').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-' + p).classList.add('active');
+  if(window.innerWidth < 768) toggleMenu();
+  
+  // Si on navigue vers dashboard, redessiner les graphiques
+  if(p === 'dashboard') {
+    setTimeout(() => render(), 100);
+  }
+}
   
   document.querySelectorAll('.page-content').forEach(x => x.classList.remove('active'));
   document.getElementById('page-' + p).classList.add('active');
@@ -1518,7 +1524,6 @@ function updateValo() {
   if(!currentUser || currentUser.role !== "admin") return;
   const val = Number(document.getElementById("newValo").value);
   if(isNaN(val) || val < 0) { alert("Valeur invalide"); return; }
-  history.push(JSON.stringify(data));
   saveToHistory();
   data.valorisation = val;
   document.getElementById("newValo").value = "";
@@ -1529,7 +1534,6 @@ function addBenef() {
   if(!currentUser || currentUser.role !== "admin") return;
   const val = Number(document.getElementById("newBenef").value);
   if(isNaN(val)) { alert("Valeur invalide"); return; }
-  history.push(JSON.stringify(data));
   saveToHistory();
   const last = data.benefices[data.benefices.length - 1];
   data.benefices.push(last + val);
@@ -1541,7 +1545,6 @@ function addArticles() {
   if(!currentUser || currentUser.role !== "admin") return;
   const val = Number(document.getElementById("newArticles").value);
   if(isNaN(val) || val < 0) { alert("Valeur invalide"); return; }
-  history.push(JSON.stringify(data));
   saveToHistory();
   data.articles += val;
   document.getElementById("newArticles").value = "";
@@ -1553,7 +1556,6 @@ function resetData() {
   if(!confirm("⚠️ RESET COMPLET DE TOUT LE SITE ?")) return;
   if(!confirm("⚠️⚠️ DERNIÈRE CONFIRMATION - Toutes les données (vêtements, transactions, bénéfices) seront supprimées !")) return;
   
-  history.push(JSON.stringify(data));
   saveToHistory();
   // Reset data
   data = {
@@ -1582,20 +1584,27 @@ function undo() {
     return; 
   }
   
-  // Récupérer la dernière modification
-  const lastState = JSON.parse(history.pop());
-  data = lastState;
-  saveData();
+  const lastSnapshot = history[0];
   
-  alert("✅ Dernière modification annulée (" + history.length + " action(s) restante(s) à annuler)");
-}
-
-function saveToHistory() {
-  history.push(JSON.stringify(data));
-  // Garder seulement les 20 dernières modifications
-  if(history.length > 20) {
-    history.shift(); // Supprime la plus ancienne
-  }
+  const date = new Date(lastSnapshot.timestamp).toLocaleString('fr-FR');
+  const confirmMsg = `⏮️ Annuler la modification de ${lastSnapshot.modifiedBy} effectuée le ${date} ?\n\n(${history.length} action(s) dans l'historique)`;
+  
+  if(!confirm(confirmMsg)) return;
+  
+  data = JSON.parse(JSON.stringify(lastSnapshot.data));
+  transactions = JSON.parse(JSON.stringify(lastSnapshot.transactions));
+  vetements = JSON.parse(JSON.stringify(lastSnapshot.vetements));
+  
+  db.ref(DB_PATH + '/data').set(data);
+  db.ref(DB_PATH + '/transactions').set(transactions);
+  db.ref(DB_PATH + '/vetements').set(vetements);
+  
+  history.shift();
+  db.ref(DB_PATH + '/history').set(history);
+  
+  alert(`✅ Modification annulée !\n\n${history.length} action(s) restante(s) dans l'historique`);
+  updateUndoButton();
+  render();
 }
 
 function saveToHistory() {
@@ -1616,6 +1625,25 @@ function saveToHistory() {
   db.ref(DB_PATH + '/history').set(history);
 }
 
+function updateUndoButton() {
+  const btn = document.getElementById("undoBtn");
+  if(!btn) return;
+  
+  if(history.length === 0) {
+    btn.disabled = true;
+    btn.innerText = "⏮️ Annuler (aucune action)";
+  } else {
+    btn.disabled = false;
+    const lastSnapshot = history[0];
+    const date = new Date(lastSnapshot.timestamp).toLocaleString('fr-FR', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    btn.innerText = `⏮️ Annuler (${history.length}) - ${lastSnapshot.modifiedBy} ${date}`;
+  }
+}
 
 </script>
 </body>
