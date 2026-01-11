@@ -678,7 +678,7 @@ canvas {
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" id="addTransactionCard">
         <h2>Ajouter une transaction</h2>
         <select id="transactionType">
           <option value="gain">Gain</option>
@@ -969,6 +969,12 @@ function saveData() {
 }
 
 function addTransaction() {
+  // Vérifier que c'est un admin
+  if(!currentUser || currentUser.role !== "admin") {
+    alert("❌ Seul l'administrateur peut ajouter des transactions");
+    return;
+  }
+  
   const type = document.getElementById("transactionType").value;
   const amount = parseFloat(document.getElementById("transactionAmount").value);
   const desc = document.getElementById("transactionDesc").value.trim();
@@ -1449,7 +1455,16 @@ function createNewSession() {
   }
   
   initRealtimeDatabase();
+  updateUIPermissions();
   monitorSession();
+}
+
+function updateUIPermissions() {
+  if(currentUser && currentUser.role === "admin") {
+    document.getElementById("addTransactionCard").style.display = "block";
+  } else {
+    document.getElementById("addTransactionCard").style.display = "none";
+  }
 }
 
 function logout() {
