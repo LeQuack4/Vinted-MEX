@@ -578,6 +578,25 @@ canvas {
   user-select: none;
   z-index: 10;
 }
+
+.vetement-status {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.status-en-vente {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-vendu {
+  background: #f8d7da;
+  color: #721c24;
+}
 </style>
 </head>
 <body>
@@ -595,20 +614,20 @@ canvas {
     <h2>Menu</h2>
   </div>
   <ul class="sidebar-menu">
-    <li><a href="#" data-page="dashboard" class="active">📊 Dashboard</a></li>
-    <li><a href="#" data-page="argent">💰 Argent</a></li>
-    <li><a href="#" data-page="vetements">👕 Vêtements</a></li>
-    <li><a href="#" data-page="vinted">🛍️ Vinted</a></li>
-    <li><a href="#" data-page="admin" id="adminMenuLink" class="hidden">⚙️ Admin</a></li>
-    <li><a href="#" data-page="security" id="securityMenuLink" class="hidden">🔒 Sécurité</a></li>
-    <li><a href="#" id="logoutMenuBtn">🚪 Déconnexion</a></li>
+    <li><a href="#" data-page="dashboard" class="active">Dashboard</a></li>
+    <li><a href="#" data-page="argent">Argent</a></li>
+    <li><a href="#" data-page="vetements">Vêtements</a></li>
+    <li><a href="#" data-page="vinted">Vinted</a></li>
+    <li><a href="#" data-page="admin" id="adminMenuLink" class="hidden">Admin</a></li>
+    <li><a href="#" data-page="security" id="securityMenuLink" class="hidden">Sécurité</a></li>
+    <li><a href="#" id="logoutMenuBtn">Déconnexion</a></li>
   </ul>
 </div>
 
 <!-- Login -->
 <div class="container" id="login">
   <div class="logo-container">
-    <img src="https://i.postimg.cc/pVQnnfhL/Sans-titre-3-1.png" alt="Logo">
+    <img src="logo.png" alt="Logo">
   </div>
   <h1>Connexion</h1>
   <input id="username" placeholder="Nom d'utilisateur" autocomplete="username">
@@ -645,7 +664,7 @@ canvas {
   <!-- Page Argent -->
   <div class="page-content" id="page-argent">
     <div class="container">
-      <h1>💰 Gestion de l'Argent</h1>
+      <h1>Gestion de l'Argent</h1>
       
       <div class="money-summary">
         <div class="money-card gain">
@@ -683,7 +702,7 @@ canvas {
   <!-- Page Vêtements -->
   <div class="page-content" id="page-vetements">
     <div class="container">
-      <h1>👕 Vêtements</h1>
+      <h1>Vêtements</h1>
       <div class="card">
         <button id="addVetementBtn">➕ Ajouter un vêtement</button>
       </div>
@@ -694,17 +713,17 @@ canvas {
   <!-- Page Vinted -->
   <div class="page-content" id="page-vinted">
     <div class="container">
-      <h1>🛍️ Ma Page Vinted</h1>
+      <h1>Ma Page Vinted</h1>
       <div class="vinted-card">
         <h2>Boutique Vinted</h2>
         <p>Accédez à ma boutique en ligne et découvrez tous mes articles en vente</p>
         <a href="https://www.vinted.fr/member/276522486" target="_blank" class="vinted-btn">
-          🛍️ Accéder à ma page Vinted
+          Accéder à ma page Vinted
         </a>
       </div>
       
       <div class="vinted-info">
-        <h3>📦 Informations sur ma boutique</h3>
+        <h3>Informations sur ma boutique</h3>
         <ul>
           <li>Plus de 50 articles disponibles</li>
           <li>Vêtements de qualité vérifiés</li>
@@ -719,7 +738,7 @@ canvas {
   <!-- Page Admin -->
   <div class="page-content" id="page-admin">
     <div class="container">
-      <h1>⚙️ Panel Admin</h1>
+      <h1>Panel Admin</h1>
       <div class="card">
         <h2>Panel Admin</h2>
         <label>Valorisation (€)</label>
@@ -740,7 +759,7 @@ canvas {
   <!-- Page Sécurité -->
   <div class="page-content" id="page-security">
     <div class="container">
-      <h1>🔒 Gestion de Sécurité</h1>
+      <h1>Gestion de Sécurité</h1>
       <div class="card">
         <div style="background:#d4edda; padding:15px; border-radius:8px; margin-bottom:15px; border:2px solid #28a745;">
           <strong>🛡️ VOTRE IP MAÎTRE (INBANNISSABLE) :</strong><br>
@@ -1043,6 +1062,7 @@ function saveVetement() {
     title: title,
     description: desc,
     images: selectedImages,
+    status: 'en-vente', // Par défaut en vente
     date: new Date().toISOString()
   };
   
