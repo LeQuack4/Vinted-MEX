@@ -935,10 +935,24 @@ function handleEnter(e) {
 function render() {
   document.getElementById("valo").innerText = data.valorisation;
   document.getElementById("articles").innerText = data.articles;
+  
+  // Vérifier que les canvas existent (que tu es sur la page dashboard)
+  const partsCanvas = document.getElementById("partsChart");
+  const benefCanvas = document.getElementById("benefChart");
+  
+  if(!partsCanvas || !benefCanvas) {
+    // Si les canvas n'existent pas, on ne peut pas dessiner les graphiques
+    return;
+  }
+  
   const labels = data.actionnaires.map(a => a.nom + ' - ' + a.part + '% (' + (data.valorisation * a.part / 100).toFixed(0) + '€)');
   const values = data.actionnaires.map(a => a.part);
-  if(partsChart) partsChart.destroy();
-  partsChart = new Chart(document.getElementById("partsChart"), {
+  
+  if(partsChart) {
+    partsChart.destroy();
+  }
+  
+  partsChart = new Chart(partsCanvas, {
     type: 'pie',
     data: {
       labels: labels,
@@ -948,8 +962,12 @@ function render() {
       }]
     }
   });
-  if(benefChart) benefChart.destroy();
-  benefChart = new Chart(document.getElementById("benefChart"), {
+  
+  if(benefChart) {
+    benefChart.destroy();
+  }
+  
+  benefChart = new Chart(benefCanvas, {
     type: 'line',
     data: {
       labels: data.benefices.map((v, i) => 'T' + (i + 1)),
