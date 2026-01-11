@@ -1291,14 +1291,53 @@ function monitorSession() {
 }
 
 function forceLogout() {
-  if(currentSessionId) db.ref(DB_PATH + '/sessions/' + currentSessionId).off();
+  // Détacher les listeners Firebase
+  if(currentSessionId) {
+    db.ref(DB_PATH + '/sessions/' + currentSessionId).off();
+  }
+  db.ref(DB_PATH + '/data').off();
+  db.ref(DB_PATH + '/transactions').off();
+  db.ref(DB_PATH + '/vetements').off();
+  if(currentUser && currentUser.role === "admin") {
+    db.ref(DB_PATH + '/sessions').off();
+    db.ref(DB_PATH + '/blockedIPs').off();
+  }
+  
+  // Détruire les graphiques
+  if(partsChart) {
+    partsChart.destroy();
+    partsChart = null;
+  }
+  if(benefChart) {
+    benefChart.destroy();
+    benefChart = null;
+  }
+  
+  // Réinitialiser les variables
   currentUser = null;
   currentSessionId = null;
   myIP = null;
+  
+  // Réinitialiser l'interface
   document.getElementById("mainContent").classList.add("hidden");
   document.getElementById("login").classList.remove("hidden");
   document.getElementById("sidebar").classList.remove("active");
   document.getElementById("menuToggle").classList.remove("show");
+  document.getElementById("menuToggle").classList.remove("active");
+  
+  // Revenir à la page dashboard
+  document.querySelectorAll('.page-content').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-dashboard').classList.add('active');
+  
+  // Réactiver le lien dashboard dans le menu
+  document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
+  document.querySelector('.sidebar-menu a[data-page="dashboard"]').classList.add('active');
+  
+  // Masquer les liens admin
+  document.getElementById("adminMenuLink").classList.add("hidden");
+  document.getElementById("securityMenuLink").classList.add("hidden");
+  
+  // Vider les champs de connexion
   document.getElementById("username").value = "";
   document.getElementById("password").value = "";
 }
