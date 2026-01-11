@@ -18,6 +18,7 @@ input { width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:
 input:focus { outline:none; background:#e0e0d9; border-color: rgb(29,75,37); }
 button { width:100%; padding:12px; margin-top:5px; background: rgb(29,75,37); color:#fff; font-weight:bold; font-size:1rem; border-radius:10px; border:none; cursor:pointer; transition: background 0.2s, transform 0.2s; }
 button:hover { background: rgb(45,115,55); transform: translateY(-2px); }
+button:disabled { background: #999; cursor: not-allowed; }
 #login { max-width:400px; margin:50px auto; padding:30px; background:#fff; border-radius:15px; box-shadow:0 4px 20px rgba(0,0,0,0.3); text-align:center; }
 .hidden { display:none !important; }
 canvas { max-width:100%; height:300px; display:block; margin:0 auto; }
@@ -29,6 +30,7 @@ canvas { max-width:100%; height:300px; display:block; margin:0 auto; }
 .my-session { background:#d4edda !important; }
 .intruder { background:#f8d7da !important; }
 .blocked { background:#ff4444; color:#fff; }
+.loading { color:#666; font-size:0.9rem; margin-top:10px; }
 </style>
 </head>
 <body>
@@ -39,12 +41,12 @@ canvas { max-width:100%; height:300px; display:block; margin:0 auto; }
 
 <div class="container" id="login">
   <h1>Connexion</h1>
-  <input id="username" placeholder="Nom d'utilisateur" onkeydown="handleEnter(event)">
+  <input id="username" placeholder="Nom d'utilisateur">
   <div style="position: relative;">
-    <input id="password" type="password" placeholder="Mot de passe" onkeydown="handleEnter(event)">
-    <span id="togglePwd" onclick="togglePassword()" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem;">👁️</span>
+    <input id="password" type="password" placeholder="Mot de passe">
+    <span id="togglePwd" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2rem;">👁️</span>
   </div>
-  <button id="loginBtn" onclick="login()">Se connecter</button>
+  <button id="loginBtn">Se connecter</button>
 </div>
 
 <div class="container hidden" id="dashboard">
@@ -70,15 +72,15 @@ canvas { max-width:100%; height:300px; display:block; margin:0 auto; }
     <h2>Panel Admin</h2>
     <label>Valorisation (€)</label>
     <input id="newValo" type="number">
-    <button onclick="updateValo()">Modifier valorisation</button>
+    <button id="updateValoBtn">Modifier valorisation</button>
     <label>Bénéfice à ajouter (€)</label>
     <input id="newBenef" type="number">
-    <button onclick="addBenef()">Ajouter bénéfice</button>
+    <button id="addBenefBtn">Ajouter bénéfice</button>
     <label>Articles vendus à ajouter</label>
     <input id="newArticles" type="number">
-    <button onclick="addArticles()">Ajouter ventes</button>
-    <button onclick="resetData()" style="margin-top:10px; background:red;">Reset données</button>
-    <button onclick="undo()" style="margin-top:10px; background:orange;">Annuler</button>
+    <button id="addArticlesBtn">Ajouter ventes</button>
+    <button id="resetBtn" style="margin-top:10px; background:red;">Reset données</button>
+    <button id="undoBtn" style="margin-top:10px; background:orange;">Annuler</button>
   </div>
 
   <div class="card hidden" id="securityPanel">
@@ -97,10 +99,10 @@ canvas { max-width:100%; height:300px; display:block; margin:0 auto; }
     <div id="blockedIPsContainer"></div>
     <h3 style="margin-top:20px;">Bannir une IP manuellement</h3>
     <input id="ipToBlock" placeholder="IP à bannir">
-    <button onclick="blockIPManually()" style="background:#ff4444;">🔒 Bannir cette IP</button>
+    <button id="blockIPBtn" style="background:#ff4444;">🔒 Bannir cette IP</button>
   </div>
 
-  <button onclick="logout()" style="background:#666; margin-top:20px;">Se déconnecter</button>
+  <button id="logoutBtn" style="background:#666; margin-top:20px;">Se déconnecter</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
@@ -108,8 +110,8 @@ canvas { max-width:100%; height:300px; display:block; margin:0 auto; }
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 <script>
-const CURRENT_VERSION = "1.0.3"; // VERSION DU SITE - À CHANGER À CHAQUE MISE À JOUR
-const DB_PATH = "dashboardV2"; // NOUVEAU PATH - Les anciennes versions utilisent "dashboard"
+const CURRENT_VERSION = "1.0.4";
+const DB_PATH = "dashboardV2";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDjkZPkzEOpBLM498Q8URIlHYjRhdcomQo",
@@ -120,14 +122,8 @@ const firebaseConfig = {
   messagingSenderId: "703331030101",
   appId: "1:703331030101:web:28618bf08e007ec8b230dc"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
 
-// MIGRATION AUTOMATIQUE des anciennes données vers V2
-migrateToV2();
-
-// VÉRIFICATION DE VERSION AU CHARGEMENT
-checkVersion();
+let db;
 
 const users = {
   xuban: { password:"admin12", role:"admin" },
@@ -152,19 +148,37 @@ let data = {
 let history = [];
 let partsChart, benefChart;
 
+function init() {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  
+  document.getElementById("loginBtn").onclick = login;
+  document.getElementById("username").onkeydown = handleEnter;
+  document.getElementById("password").onkeydown = handleEnter;
+  document.getElementById("togglePwd").onclick = togglePassword;
+  document.getElementById("updateValoBtn").onclick = updateValo;
+  document.getElementById("addBenefBtn").onclick = addBenef;
+  document.getElementById("addArticlesBtn").onclick = addArticles;
+  document.getElementById("resetBtn").onclick = resetData;
+  document.getElementById("undoBtn").onclick = undo;
+  document.getElementById("blockIPBtn").onclick = blockIPManually;
+  document.getElementById("logoutBtn").onclick = logout;
+}
+
+window.onload = init;
+
 function generateSessionId(){
   return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
 function getSimulatedIP(){
   const ua = navigator.userAgent;
-  const screen = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
+  const screen = window.screen.width + 'x' + window.screen.height + 'x' + window.screen.colorDepth;
   const lang = navigator.language;
   const platform = navigator.platform;
   const cores = navigator.hardwareConcurrency || 'unknown';
   const memory = navigator.deviceMemory || 'unknown';
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  
   let hash = 0;
   const str = ua + screen + lang + platform + cores + memory + timezone;
   for(let i = 0; i < str.length; i++){
@@ -172,14 +186,12 @@ function getSimulatedIP(){
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
-  
   const num = Math.abs(hash);
   const a = (num >> 24) & 255;
   const b = (num >> 16) & 255;
   const c = (num >> 8) & 255;
   const d = num & 255;
-  
-  return `${a}.${b}.${c}.${d}`;
+  return a + '.' + b + '.' + c + '.' + d;
 }
 
 function togglePassword(){
@@ -194,119 +206,36 @@ function togglePassword(){
   }
 }
 
-function handleEnter(event){
-  if(event.key === "Enter" || event.keyCode === 13){
-    event.preventDefault();
+function handleEnter(e){
+  if(e.key === "Enter" || e.keyCode === 13){
+    e.preventDefault();
     login();
   }
-}
-
-function migrateToV2(){
-  // Vérifier si migration déjà faite
-  db.ref(`${DB_PATH}/migrated`).once("value", snapshot => {
-    if(!snapshot.exists()){
-      console.log("🔄 Migration vers V2...");
-      // Récupérer les anciennes données
-      db.ref("dashboard/data").once("value", oldData => {
-        if(oldData.exists()){
-          // Copier vers V2
-          db.ref(`${DB_PATH}/data`).set(oldData.val()).then(() => {
-            console.log("✅ Données migrées vers V2");
-          });
-        }
-      });
-      
-      // Marquer comme migré
-      db.ref(`${DB_PATH}/migrated`).set(true);
-      console.log("✅ Migration terminée");
-    } else {
-      console.log("✅ Déjà migré vers V2");
-    }
-  });
-}
-
-function checkVersion(){
-  db.ref(`${DB_PATH}/version`).once("value", snapshot => {
-    if(snapshot.exists()){
-      const requiredVersion = snapshot.val().current;
-      if(requiredVersion !== CURRENT_VERSION){
-        document.body.innerHTML = `
-          <div style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:#f8d7da; color:#721c24; font-family:Arial, sans-serif; text-align:center; padding:20px;">
-            <div style="max-width:500px; background:#fff; padding:40px; border-radius:15px; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
-              <h1 style="font-size:2.5rem; margin-bottom:20px;">🚫 VERSION OBSOLÈTE</h1>
-              <p style="font-size:1.2rem; margin-bottom:15px;">Cette version du site n'est plus supportée.</p>
-              <p style="font-size:1rem; color:#666; margin-bottom:20px;">Version actuelle : <strong>${CURRENT_VERSION}</strong></p>
-              <p style="font-size:1rem; color:#666; margin-bottom:20px;">Version requise : <strong>${requiredVersion}</strong></p>
-              <p style="font-size:1.1rem; color:#000;">Veuillez contacter l'administrateur pour obtenir la dernière version.</p>
-            </div>
-          </div>
-        `;
-        throw new Error("Version obsolète");
-      } else {
-        console.log("✅ Version OK:", CURRENT_VERSION);
-      }
-    } else {
-      // Première initialisation : définir la version actuelle
-      db.ref(`${DB_PATH}/version`).set({
-        current: CURRENT_VERSION,
-        updatedAt: Date.now()
-      });
-      console.log("✅ Version initialisée:", CURRENT_VERSION);
-    }
-  });
 }
 
 function render(){
   document.getElementById("valo").innerText = data.valorisation;
   document.getElementById("articles").innerText = data.articles;
-
-  const labels = data.actionnaires.map(a => `${a.nom} - ${a.part}% (${(data.valorisation*a.part/100).toFixed(0)}€)`);
+  const labels = data.actionnaires.map(a => a.nom + ' - ' + a.part + '% (' + (data.valorisation*a.part/100).toFixed(0) + '€)');
   const values = data.actionnaires.map(a => a.part);
-
   if(partsChart) partsChart.destroy();
-  partsChart = new Chart(document.getElementById("partsChart"),{
-    type:'pie',
-    data:{
-      labels:labels,
-      datasets:[{
-        data:values,
-        backgroundColor:["#1a5f2c","#2e8b46","#4caf50"]
-      }]
-    }
-  });
-
+  partsChart = new Chart(document.getElementById("partsChart"),{type:'pie',data:{labels:labels,datasets:[{data:values,backgroundColor:["#1a5f2c","#2e8b46","#4caf50"]}]}});
   if(benefChart) benefChart.destroy();
-  benefChart = new Chart(document.getElementById("benefChart"),{
-    type:'line',
-    data:{
-      labels:data.benefices.map((_,i)=>`T${i+1}`),
-      datasets:[{
-        label:"Bénéfices (€)",
-        data:data.benefices,
-        fill:false,
-        borderColor:"#1d4b25",
-        tension:0.1
-      }]
-    }
-  });
+  benefChart = new Chart(document.getElementById("benefChart"),{type:'line',data:{labels:data.benefices.map((v,i)=>'T'+(i+1)),datasets:[{label:"Bénéfices (€)",data:data.benefices,fill:false,borderColor:"#1d4b25",tension:0.1}]}});
 }
 
 function saveData(){
-  db.ref(`${DB_PATH}/data`).set(data);
+  db.ref(DB_PATH + '/data').set(data);
 }
 
 function getMasterIP(callback){
-  db.ref(`${DB_PATH}/masterIP`).once("value", snapshot => {
+  db.ref(DB_PATH + '/masterIP').once("value", snapshot => {
     callback(snapshot.exists() ? snapshot.val().ip : null);
   });
 }
 
 function setMasterIP(ip){
-  db.ref(`${DB_PATH}/masterIP`).set({
-    ip: ip,
-    setAt: Date.now(),
-    setBy: "xuban"
-  });
+  db.ref(DB_PATH + '/masterIP').set({ip: ip, setAt: Date.now(), setBy: "xuban"});
   console.log("🛡️ IP Maître définie:", ip);
 }
 
@@ -316,7 +245,7 @@ function checkIfIPBlocked(ip, callback){
       callback(false);
       return;
     }
-    db.ref(`${DB_PATH}/blockedIPs/${ip.replace(/\./g, '_')}`).once("value", snapshot => {
+    db.ref(DB_PATH + '/blockedIPs/' + ip.replace(/\./g, '_')).once("value", snapshot => {
       const blocked = snapshot.val();
       callback(blocked && blocked.blocked);
     });
@@ -324,25 +253,17 @@ function checkIfIPBlocked(ip, callback){
 }
 
 function autoBanIntruder(ip, username){
-  db.ref(`${DB_PATH}/blockedIPs/${ip.replace(/\./g, '_')}`).set({
-    blocked: true,
-    blockedAt: Date.now(),
-    blockedBy: "SYSTÈME AUTO-BAN",
-    reason: `Tentative connexion "${username}" depuis IP non autorisée`
-  });
+  db.ref(DB_PATH + '/blockedIPs/' + ip.replace(/\./g, '_')).set({blocked: true, blockedAt: Date.now(), blockedBy: "SYSTÈME AUTO-BAN", reason: 'Tentative connexion "' + username + '" depuis IP non autorisée'});
   console.log("🚨 AUTO-BAN pour IP:", ip);
 }
 
 function renderSessions(){
   if(!currentUser || currentUser.role !== "admin") return;
-  
   getMasterIP(masterIP => {
-    db.ref(`${DB_PATH}/sessions`).once("value", snapshot => {
+    db.ref(DB_PATH + '/sessions').once("value", snapshot => {
       const sessions = snapshot.val() || {};
       const container = document.getElementById("sessionsContainer");
-      
       let html = '<table class="sessions-table"><thead><tr><th>User</th><th>IP</th><th>Connexion</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
-      
       let hasActive = false;
       for(let sid in sessions){
         const s = sessions[sid];
@@ -352,46 +273,19 @@ function renderSessions(){
           const isCurrent = sid === currentSessionId;
           const isMaster = s.ip === masterIP;
           const isIntruder = s.username === 'xuban' && !isMaster;
-          
-          let status = '';
-          let rowClass = '';
-          
-          if(isCurrent && isMaster){
-            status = '🛡️ VOUS (IP Maître)';
-            rowClass = 'my-session';
-          } else if(isMaster){
-            status = '🛡️ IP Maître';
-            rowClass = 'my-session';
-          } else if(isIntruder){
-            status = '🚨 INTRUS BANNI';
-            rowClass = 'intruder';
-          } else if(isCurrent){
-            status = '✅ Vous';
-          } else {
-            status = '👤 Autre';
-          }
-          
-          html += `<tr class="${rowClass}">
-            <td><strong>${s.username}</strong></td>
-            <td>${s.ip}</td>
-            <td>${time}</td>
-            <td><strong>${status}</strong></td>
-            <td>`;
-          
-          if(!isCurrent){
-            html += `<button class="btn-small" onclick="kickSession('${sid}')" style="background:#ff9800;">⏏️ Kick</button>`;
-          }
-          
-          if(!isMaster){
-            html += `<button class="btn-small" onclick="blockIP('${s.ip}', '${sid}')" style="background:#dc3545;">🔒 BAN</button>`;
-          } else {
-            html += `<span style="color:#28a745; font-size:0.8rem; font-weight:bold;">🛡️ PROTÉGÉE</span>`;
-          }
-          
-          html += `</td></tr>`;
+          let status = '', rowClass = '';
+          if(isCurrent && isMaster){ status = '🛡️ VOUS (IP Maître)'; rowClass = 'my-session'; }
+          else if(isMaster){ status = '🛡️ IP Maître'; rowClass = 'my-session'; }
+          else if(isIntruder){ status = '🚨 INTRUS BANNI'; rowClass = 'intruder'; }
+          else if(isCurrent){ status = '✅ Vous'; }
+          else { status = '👤 Autre'; }
+          html += '<tr class="' + rowClass + '"><td><strong>' + s.username + '</strong></td><td>' + s.ip + '</td><td>' + time + '</td><td><strong>' + status + '</strong></td><td>';
+          if(!isCurrent) html += '<button class="btn-small" onclick="kickSession(\'' + sid + '\')" style="background:#ff9800;">⏏️ Kick</button>';
+          if(!isMaster) html += '<button class="btn-small" onclick="blockIP(\'' + s.ip + '\', \'' + sid + '\')" style="background:#dc3545;">🔒 BAN</button>';
+          else html += '<span style="color:#28a745; font-size:0.8rem; font-weight:bold;">🛡️ PROTÉGÉE</span>';
+          html += '</td></tr>';
         }
       }
-      
       html += '</tbody></table>';
       container.innerHTML = hasActive ? html : '<p style="color:#666;">Aucune session active</p>';
     });
@@ -400,13 +294,10 @@ function renderSessions(){
 
 function renderBlockedIPs(){
   if(!currentUser || currentUser.role !== "admin") return;
-  
-  db.ref(`${DB_PATH}/blockedIPs`).once("value", snapshot => {
+  db.ref(DB_PATH + '/blockedIPs').once("value", snapshot => {
     const blocked = snapshot.val() || {};
     const container = document.getElementById("blockedIPsContainer");
-    
     let html = '<table class="sessions-table"><thead><tr><th>IP</th><th>Date</th><th>Raison</th><th>Actions</th></tr></thead><tbody>';
-    
     let hasBlocked = false;
     for(let ip in blocked){
       if(blocked[ip].blocked){
@@ -414,16 +305,9 @@ function renderBlockedIPs(){
         const time = new Date(blocked[ip].blockedAt).toLocaleString('fr-FR');
         const reason = blocked[ip].reason || "Manuelle";
         const realIP = ip.replace(/_/g, '.');
-        
-        html += `<tr class="blocked">
-          <td><strong>${realIP}</strong></td>
-          <td>${time}</td>
-          <td>${reason}</td>
-          <td><button class="btn-small" onclick="unblockIP('${ip}')" style="background:#4caf50;">✅ Débloquer</button></td>
-        </tr>`;
+        html += '<tr class="blocked"><td><strong>' + realIP + '</strong></td><td>' + time + '</td><td>' + reason + '</td><td><button class="btn-small" onclick="unblockIP(\'' + ip + '\')" style="background:#4caf50;">✅ Débloquer</button></td></tr>';
       }
     }
-    
     html += '</tbody></table>';
     container.innerHTML = hasBlocked ? html : '<p style="color:#666;">Aucune IP bannie</p>';
   });
@@ -431,10 +315,7 @@ function renderBlockedIPs(){
 
 function kickSession(sid){
   if(confirm("⏏️ Déconnecter cette session ?")){
-    db.ref(`${DB_PATH}/sessions/${sid}`).update({
-      active: false,
-      kickedAt: Date.now()
-    }).then(() => {
+    db.ref(DB_PATH + '/sessions/' + sid).update({active: false, kickedAt: Date.now()}).then(() => {
       alert("✅ Session déconnectée");
       renderSessions();
     });
@@ -443,30 +324,18 @@ function kickSession(sid){
 
 function blockIP(ip, sid){
   getMasterIP(masterIP => {
-    if(ip === masterIP){
-      alert("❌ Impossible de bannir l'IP Maître !");
-      return;
-    }
-    
-    if(confirm(`🔒 BANNIR l'IP ${ip} ?`)){
-      db.ref(`${DB_PATH}/blockedIPs/${ip.replace(/\./g, '_')}`).set({
-        blocked: true,
-        blockedAt: Date.now(),
-        blockedBy: currentUser.username,
-        reason: `Banni manuellement`
-      }).then(() => {
-        db.ref(`${DB_PATH}/sessions`).once("value", snapshot => {
+    if(ip === masterIP){ alert("❌ Impossible de bannir l'IP Maître !"); return; }
+    if(confirm('🔒 BANNIR l\'IP ' + ip + ' ?')){
+      db.ref(DB_PATH + '/blockedIPs/' + ip.replace(/\./g, '_')).set({blocked: true, blockedAt: Date.now(), blockedBy: currentUser.username, reason: 'Banni manuellement'}).then(() => {
+        db.ref(DB_PATH + '/sessions').once("value", snapshot => {
           const sessions = snapshot.val() || {};
           for(let s in sessions){
             if(sessions[s].ip === ip && sessions[s].active){
-              db.ref(`${DB_PATH}/sessions/${s}`).update({
-                active: false,
-                kickedAt: Date.now()
-              });
+              db.ref(DB_PATH + '/sessions/' + s).update({active: false, kickedAt: Date.now()});
             }
           }
         });
-        alert(`✅ IP ${ip} bannie !`);
+        alert('✅ IP ' + ip + ' bannie !');
         renderBlockedIPs();
         renderSessions();
       });
@@ -476,25 +345,12 @@ function blockIP(ip, sid){
 
 function blockIPManually(){
   const ip = document.getElementById("ipToBlock").value.trim();
-  if(!ip){
-    alert("Entrez une IP");
-    return;
-  }
-  
+  if(!ip){ alert("Entrez une IP"); return; }
   getMasterIP(masterIP => {
-    if(ip === masterIP){
-      alert("❌ Impossible de bannir l'IP Maître !");
-      return;
-    }
-    
-    if(confirm(`🔒 Bannir ${ip} ?`)){
-      db.ref(`${DB_PATH}/blockedIPs/${ip.replace(/\./g, '_')}`).set({
-        blocked: true,
-        blockedAt: Date.now(),
-        blockedBy: currentUser.username,
-        reason: "Blocage manuel"
-      }).then(() => {
-        alert(`✅ IP ${ip} bannie !`);
+    if(ip === masterIP){ alert("❌ Impossible de bannir l'IP Maître !"); return; }
+    if(confirm('🔒 Bannir ' + ip + ' ?')){
+      db.ref(DB_PATH + '/blockedIPs/' + ip.replace(/\./g, '_')).set({blocked: true, blockedAt: Date.now(), blockedBy: currentUser.username, reason: "Blocage manuel"}).then(() => {
+        alert('✅ IP ' + ip + ' bannie !');
         document.getElementById("ipToBlock").value = "";
         renderBlockedIPs();
       });
@@ -504,9 +360,9 @@ function blockIPManually(){
 
 function unblockIP(ip){
   const realIP = ip.replace(/_/g, '.');
-  if(confirm(`✅ Débloquer ${realIP} ?`)){
-    db.ref(`${DB_PATH}/blockedIPs/${ip}`).remove().then(() => {
-      alert(`✅ IP ${realIP} débloquée`);
+  if(confirm('✅ Débloquer ' + realIP + ' ?')){
+    db.ref(DB_PATH + '/blockedIPs/' + ip).remove().then(() => {
+      alert('✅ IP ' + realIP + ' débloquée');
       renderBlockedIPs();
     });
   }
@@ -514,7 +370,7 @@ function unblockIP(ip){
 
 function monitorSession(){
   if(!currentSessionId) return;
-  db.ref(`${DB_PATH}/sessions/${currentSessionId}`).on("value", snapshot => {
+  db.ref(DB_PATH + '/sessions/' + currentSessionId).on("value", snapshot => {
     const s = snapshot.val();
     if(s && !s.active){
       alert("⚠️ Vous avez été déconnecté !");
@@ -524,9 +380,7 @@ function monitorSession(){
 }
 
 function forceLogout(){
-  if(currentSessionId){
-    db.ref(`${DB_PATH}/sessions/${currentSessionId}`).off();
-  }
+  if(currentSessionId) db.ref(DB_PATH + '/sessions/' + currentSessionId).off();
   currentUser = null;
   currentSessionId = null;
   myIP = null;
@@ -539,43 +393,34 @@ function forceLogout(){
 }
 
 function initRealtimeDatabase(){
-  db.ref(`${DB_PATH}/data`).on("value", snapshot=>{
+  db.ref(DB_PATH + '/data').on("value", snapshot=>{
     if(snapshot.exists()){
       data = snapshot.val();
       render();
     } else {
-      db.ref(`${DB_PATH}/data`).set(data);
+      db.ref(DB_PATH + '/data').set(data);
     }
   });
-  
   if(currentUser.role === "admin"){
-    db.ref(`${DB_PATH}/sessions`).on("value", () => renderSessions());
-    db.ref(`${DB_PATH}/blockedIPs`).on("value", () => renderBlockedIPs());
+    db.ref(DB_PATH + '/sessions').on("value", () => renderSessions());
+    db.ref(DB_PATH + '/blockedIPs').on("value", () => renderBlockedIPs());
   }
 }
 
 function login(){
   const u = document.getElementById("username").value.toLowerCase().trim();
   const p = document.getElementById("password").value;
-
-  if(!users[u] || users[u].password !== p){
-    alert("❌ Identifiants incorrects");
-    return;
-  }
-  
+  if(!users[u] || users[u].password !== p){ alert("❌ Identifiants incorrects"); return; }
   myIP = getSimulatedIP();
   console.log("🔍 IP:", myIP);
-  
   checkIfIPBlocked(myIP, isBlocked => {
     if(isBlocked){
       alert("🚫 ACCÈS REFUSÉ - IP BANNIE\n\n" + myIP);
       return;
     }
-    
     currentUser = users[u];
     currentUser.username = u;
     currentSessionId = generateSessionId();
-    
     if(currentUser.role === "admin" && u === "xuban"){
       getMasterIP(masterIP => {
         if(!masterIP){
@@ -584,7 +429,6 @@ function login(){
           proceedLogin();
         } else {
           document.getElementById("myProtectedIP").innerText = masterIP;
-          
           if(myIP !== masterIP){
             console.warn("🚨 INTRUS ! xuban depuis IP non-master");
             autoBanIntruder(myIP, u);
@@ -602,34 +446,22 @@ function login(){
 }
 
 function proceedLogin(){
-  db.ref(`${DB_PATH}/sessions/${currentSessionId}`).set({
-    username: currentUser.username,
-    ip: myIP,
-    loginTime: Date.now(),
-    active: true,
-    userAgent: navigator.userAgent.substring(0, 100)
-  });
-
+  db.ref(DB_PATH + '/sessions/' + currentSessionId).set({username: currentUser.username, ip: myIP, loginTime: Date.now(), active: true, userAgent: navigator.userAgent.substring(0, 100)});
   document.getElementById("login").classList.add("hidden");
   document.getElementById("dashboard").classList.remove("hidden");
-
   if(currentUser.role === "admin"){
     document.getElementById("adminPanel").classList.remove("hidden");
     document.getElementById("securityPanel").classList.remove("hidden");
     renderSessions();
     renderBlockedIPs();
   }
-
   initRealtimeDatabase();
   monitorSession();
 }
 
 function logout(){
   if(currentSessionId){
-    db.ref(`${DB_PATH}/sessions/${currentSessionId}`).update({
-      active: false,
-      logoutTime: Date.now()
-    });
+    db.ref(DB_PATH + '/sessions/' + currentSessionId).update({active: false, logoutTime: Date.now()});
   }
   forceLogout();
 }
@@ -669,16 +501,7 @@ function resetData(){
   if(!currentUser || currentUser.role!=="admin") return;
   if(!confirm("⚠️ RESET COMPLET ?")) return;
   history.push(JSON.stringify(data));
-  data = {
-    valorisation:200,
-    articles:0,
-    actionnaires:[
-      {nom:"Xuban", part:50},
-      {nom:"Mathis", part:25},
-      {nom:"Enzo", part:25}
-    ],
-    benefices:[0]
-  };
+  data = {valorisation:200, articles:0, actionnaires:[{nom:"Xuban", part:50},{nom:"Mathis", part:25},{nom:"Enzo", part:25}], benefices:[0]};
   saveData();
 }
 
