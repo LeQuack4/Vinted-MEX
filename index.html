@@ -1482,6 +1482,7 @@ function updateValo() {
   const val = Number(document.getElementById("newValo").value);
   if(isNaN(val) || val < 0) { alert("Valeur invalide"); return; }
   history.push(JSON.stringify(data));
+  saveToHistory();
   data.valorisation = val;
   document.getElementById("newValo").value = "";
   saveData();
@@ -1492,6 +1493,7 @@ function addBenef() {
   const val = Number(document.getElementById("newBenef").value);
   if(isNaN(val)) { alert("Valeur invalide"); return; }
   history.push(JSON.stringify(data));
+  saveToHistory();
   const last = data.benefices[data.benefices.length - 1];
   data.benefices.push(last + val);
   document.getElementById("newBenef").value = "";
@@ -1503,6 +1505,7 @@ function addArticles() {
   const val = Number(document.getElementById("newArticles").value);
   if(isNaN(val) || val < 0) { alert("Valeur invalide"); return; }
   history.push(JSON.stringify(data));
+  saveToHistory();
   data.articles += val;
   document.getElementById("newArticles").value = "";
   saveData();
@@ -1514,7 +1517,7 @@ function resetData() {
   if(!confirm("⚠️⚠️ DERNIÈRE CONFIRMATION - Toutes les données (vêtements, transactions, bénéfices) seront supprimées !")) return;
   
   history.push(JSON.stringify(data));
-  
+  saveToHistory();
   // Reset data
   data = {
     valorisation: 200,
@@ -1557,6 +1560,25 @@ function saveToHistory() {
     history.shift(); // Supprime la plus ancienne
   }
 }
+
+function saveToHistory() {
+  const snapshot = {
+    data: JSON.parse(JSON.stringify(data)),
+    transactions: JSON.parse(JSON.stringify(transactions)),
+    vetements: JSON.parse(JSON.stringify(vetements)),
+    timestamp: Date.now(),
+    modifiedBy: currentUser ? currentUser.username : 'system'
+  };
+  
+  history.unshift(snapshot);
+  
+  if(history.length > 50) {
+    history = history.slice(0, 50);
+  }
+  
+  db.ref(DB_PATH + '/history').set(history);
+}
+
 
 </script>
 </body>
