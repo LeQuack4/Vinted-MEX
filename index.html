@@ -879,6 +879,10 @@ function navigateToPage(p) {
   if((p === 'admin' || p === 'security') && (!currentUser || currentUser.role !== 'admin')) {
     alert("❌ Accès refusé - Réservé aux administrateurs");
     return;
+    // Si on navigue vers dashboard, redessiner les graphiques
+if(p === 'dashboard') {
+  setTimeout(() => render(), 100);
+}
   }
   
   document.querySelectorAll('.page-content').forEach(x => x.classList.remove('active'));
@@ -933,15 +937,23 @@ function handleEnter(e) {
 }
 
 function render() {
-  document.getElementById("valo").innerText = data.valorisation;
-  document.getElementById("articles").innerText = data.articles;
+  // Mettre à jour les stats textuelles
+  const valoEl = document.getElementById("valo");
+  const articlesEl = document.getElementById("articles");
   
-  // Vérifier que les canvas existent (que tu es sur la page dashboard)
+  if(valoEl) valoEl.innerText = data.valorisation;
+  if(articlesEl) articlesEl.innerText = data.articles;
+  
+  // Vérifier que les canvas existent ET sont visibles
   const partsCanvas = document.getElementById("partsChart");
   const benefCanvas = document.getElementById("benefChart");
   
-  if(!partsCanvas || !benefCanvas) {
-    // Si les canvas n'existent pas, on ne peut pas dessiner les graphiques
+  if(!partsCanvas || !benefCanvas) return;
+  
+  // Vérifier que la page dashboard est active
+  const dashboardPage = document.getElementById("page-dashboard");
+  if(!dashboardPage || !dashboardPage.classList.contains('active')) {
+    // Si on n'est pas sur dashboard, on attend
     return;
   }
   
@@ -950,6 +962,7 @@ function render() {
   
   if(partsChart) {
     partsChart.destroy();
+    partsChart = null;
   }
   
   partsChart = new Chart(partsCanvas, {
@@ -965,6 +978,7 @@ function render() {
   
   if(benefChart) {
     benefChart.destroy();
+    benefChart = null;
   }
   
   benefChart = new Chart(benefCanvas, {
