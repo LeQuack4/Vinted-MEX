@@ -890,11 +890,6 @@ function navigateToPage(p) {
     setTimeout(() => render(), 100);
   }
 }
-  
-  document.querySelectorAll('.page-content').forEach(x => x.classList.remove('active'));
-  document.getElementById('page-' + p).classList.add('active');
-  if(window.innerWidth < 768) toggleMenu();
-}
 
 function generateSessionId() {
   return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -968,7 +963,6 @@ function render() {
   
   if(partsChart) {
     partsChart.destroy();
-    partsChart = null;
   }
   
   partsChart = new Chart(partsCanvas, {
@@ -984,7 +978,6 @@ function render() {
   
   if(benefChart) {
     benefChart.destroy();
-    benefChart = null;
   }
   
   benefChart = new Chart(benefCanvas, {
@@ -1020,9 +1013,6 @@ function addTransaction() {
   if(!amount || amount <= 0) { alert("Montant invalide"); return; }
   if(!desc) { alert("Description requise"); return; }
   
-  // Sauvegarder l'état actuel dans l'historique AVANT modification
-  history.push(JSON.stringify(data));
-  
   const t = {
     id: Date.now(),
     type: type,
@@ -1030,6 +1020,9 @@ function addTransaction() {
     description: desc,
     date: new Date().toISOString()
   };
+  
+  // Sauvegarder dans l'historique AVANT la modification
+  saveToHistory();
   
   transactions.push(t);
   db.ref(DB_PATH + '/transactions').set(transactions);
@@ -1393,7 +1386,11 @@ function initRealtimeDatabase() {
   db.ref(DB_PATH + '/data').on("value", snapshot => {
     if(snapshot.exists()) {
       data = snapshot.val();
-      render();
+      // Forcer le redraw si on est sur le dashboard
+      const dashboardPage = document.getElementById("page-dashboard");
+      if(dashboardPage && dashboardPage.classList.contains('active')) {
+        setTimeout(() => render(), 50);
+      }
     } else {
       db.ref(DB_PATH + '/data').set(data);
     }
