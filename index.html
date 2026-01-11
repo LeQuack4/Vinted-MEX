@@ -118,7 +118,7 @@ button:disabled {
 
 #login { 
   max-width: 400px; 
-  margin: 50px auto; 
+  margin: 20px auto; 
   padding: 30px; 
   background: #fff; 
   border-radius: 15px; 
@@ -875,6 +875,12 @@ function toggleMenu() {
 }
 
 function navigateToPage(p) {
+  // Vérifier les permissions pour les pages admin
+  if((p === 'admin' || p === 'security') && (!currentUser || currentUser.role !== 'admin')) {
+    alert("❌ Accès refusé - Réservé aux administrateurs");
+    return;
+  }
+  
   document.querySelectorAll('.page-content').forEach(x => x.classList.remove('active'));
   document.getElementById('page-' + p).classList.add('active');
   if(window.innerWidth < 768) toggleMenu();
@@ -1145,7 +1151,11 @@ function autoBanIntruder(ip, username) {
 }
 
 function renderSessions() {
-  if(!currentUser || currentUser.role !== "admin") return;
+  if(!currentUser || currentUser.role !== "admin") {
+    alert("❌ Accès non autorisé");
+    navigateToPage('dashboard');
+    return;
+  }
   getMasterIP(masterIP => {
     db.ref(DB_PATH + '/sessions').once("value", snapshot => {
       const sessions = snapshot.val() || {};
@@ -1180,7 +1190,11 @@ function renderSessions() {
 }
 
 function renderBlockedIPs() {
-  if(!currentUser || currentUser.role !== "admin") return;
+  if(!currentUser || currentUser.role !== "admin") {
+    alert("❌ Accès non autorisé");
+    navigateToPage('dashboard');
+    return;
+  }
   db.ref(DB_PATH + '/blockedIPs').once("value", snapshot => {
     const blocked = snapshot.val() || {};
     const container = document.getElementById("blockedIPsContainer");
