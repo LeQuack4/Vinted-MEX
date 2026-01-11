@@ -607,6 +607,14 @@ function deleteVetement(id) {
   renderVetements();
 }
 
+// SÉCURITÉ
+function getMasterIP(callback){
+  if(!confirm("Supprimer ce vêtement ?")) return;
+  vetements = vetements.filter(v => v.id !== id);
+  db.ref(DB_PATH + '/vetements').set(vetements);
+  renderVetements();
+}
+
 function showMenuAfterLogin() {
   document.getElementById("menuToggle").classList.add("show");
 }
