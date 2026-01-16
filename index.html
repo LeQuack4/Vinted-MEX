@@ -812,16 +812,17 @@ let currentUser = null;
 let currentSessionId = null;
 let myIP = null;
 let data = {
-  valorisation: 225,
+  valorisation: 225,  // ✅ 225 au lieu de 200
   articles: 0,
   actionnaires: [
-    { nom: "Xuban", part: 44 },
-    { nom: "Mathis", part: 33 },
-    { nom: "Enzo", part: 22 },
-    { nom: "Investisseur", part: 1 }
+    {nom: "Xuban", part: 44}, 
+    {nom: "Mathis", part: 33}, 
+    {nom: "Enzo", part: 22},
+    {nom: "Investisseur", part: 1}
   ],
   benefices: [0]
 };
+
 let transactions = [];
 let vetements = [];
 let history = [];
@@ -1557,9 +1558,14 @@ function resetData() {
   saveToHistory();
   // Reset data
   data = {
-    valorisation: 200,
+    valorisation: 225,
     articles: 0,
-    actionnaires: [{nom: "Xuban", part: 50}, {nom: "Mathis", part: 25}, {nom: "Enzo", part: 25}],
+    actionnaires: actionnaires: [
+  {nom: "Xuban", part: 44}, 
+  {nom: "Mathis", part: 33}, 
+  {nom: "Enzo", part: 22},
+  {nom: "Investisseur", part: 1}
+],
     benefices: [0]
   };
   
