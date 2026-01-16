@@ -803,8 +803,8 @@ let db, storage;
 
 const users = {
   xuban: { password: "admin12", role: "admin" },
-  mathis: { password: "user123", role: "user" },
-  enzo: { password: "user123", role: "user" },
+  mathis: { password: "user123", role: "admin" },
+  enzo: { password: "user123", role: "admin" },
   manon: { password: "manonlaplusbellelapluschouette", role: "user" }
 };
 
@@ -812,12 +812,13 @@ let currentUser = null;
 let currentSessionId = null;
 let myIP = null;
 let data = {
-  valorisation: 200,
+  valorisation: 225,
   articles: 0,
   actionnaires: [
-    { nom: "Xuban", part: 50 },
-    { nom: "Mathis", part: 25 },
-    { nom: "Enzo", part: 25 }
+    { nom: "Xuban", part: 44 },
+    { nom: "Mathis", part: 33 },
+    { nom: "Enzo", part: 22 },
+    { nom: "Investisseur", part: 1 }
   ],
   benefices: [0]
 };
